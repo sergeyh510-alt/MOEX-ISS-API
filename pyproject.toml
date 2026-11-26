@@ -8,3 +8,6 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: тесты, требующие живой тестовой БД (TEST_DB=1)",
+]

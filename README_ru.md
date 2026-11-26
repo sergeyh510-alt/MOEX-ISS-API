@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Статус: этап 0/9**
+**Статус: этап 1/9**
 
 REST API на FastAPI поверх мини-DWH Московской биржи (MOEX). Сервис ничего не
 считает сам: он только читает готовые слои `mart` и `core` и отдаёт их в виде
@@ -31,13 +31,54 @@ docker compose up -d
 
 Затем откройте http://localhost:8000/docs для интерактивной документации Swagger.
 
+## Проверка живости (health)
+
+`GET /health` проверяет сервис и базу данных. Он пингует PostgreSQL с коротким
+таймаутом и отдаёт свежесть данных: последняя успешная загрузка из
+`meta.load_run` плюс `max(date_key)` по `mart.stock_returns` (последняя дата
+данных).
+
+```json
+{
+  "status": "ok",
+  "version": "0.1.0",
+  "time_utc": "2026-11-26T10:00:00+00:00",
+  "db": { "status": "ok", "latency_ms": 3.41 },
+  "data": { "last_load_at": "2026-10-09T15:02:05+00:00", "last_data_date": "2026-10-10" }
+}
+```
+
+Если база недоступна, эндпоинт возвращает HTTP 503 со `"status": "degraded"` и
+`"db": {"status": "unavailable", "latency_ms": null}`.
+
+## Слепок данных
+
+Каталог `db/seed/` содержит слепок витрин DWH, чтобы API запускался с чистого
+клона без живого DWH:
+
+- `db/seed/00_schemas.sql`: создаёт схемы `mart`, `core`, `meta`, `audit`.
+- `db/seed/01_seed.sql`: полный DDL плюс данные (`pg_dump --inserts`) витрин.
+
+Контейнер `api_postgres` монтирует `db/seed` в
+`/seed`, а `db/init/99_load_seed.sh` применяет файлы
+по алфавиту при первом старте и затем повторно выдаёт `SELECT` read-only роли
+`api_ro`.
+
+Перегенерировать слепок из живого DWH (поправьте параметры подключения):
+
+```bash
+pg_dump --no-owner --no-privileges --inserts \
+  --schema=mart --schema=core --schema=meta --schema=audit \
+  "postgresql://dwh:dwh@localhost:5433/moex_dwh" > db/seed/01_seed.sql
+```
+
 ## Эндпоинты
 
 Все прикладные эндпоинты находятся под `/api/v1`. Служебные эндпоинты в корне.
 
 | Метод | Путь | Назначение | Статус |
 |---|---|---|---|
-| GET | `/health` | живость (пинг БД и свежесть на этапе 1) | done |
+| GET | `/health` | живость, пинг БД и свежесть данных | done |
 | GET | `/api/v1/meta/version` | версия API, версия схемы DWH | planned |
 | GET | `/api/v1/meta/freshness` | когда обновлялся каждый слой | planned |
 | GET | `/api/v1/meta/dq` | статус проверок качества данных | planned |
@@ -56,7 +97,7 @@ docker compose up -d
 ## План работ
 
 - [x] Этап 0: скелет проекта, FastAPI-приложение и docker-compose
-- [ ] Этап 1: слой доступа к данным, read-only роль и слепок данных
+- [x] Этап 1: слой доступа к данным, read-only роль и слепок данных
 - [ ] Этап 2: справочники (dates, securities, meta)
 - [ ] Этап 3: цены и доходность
 - [ ] Этап 4: индексы и сравнение с индексом

@@ -1,10 +1,27 @@
-"""Юнит-тесты служебных эндпоинтов (этап 0)."""
+"""Юнит-тесты служебных эндпоинтов (этапы 0 и 1)."""
 
 from fastapi.testclient import TestClient
 
+from app import db
 from app.main import app
 
 client = TestClient(app)
+
+
+async def _ping_ok() -> bool:
+    """Заглушка ping: БД как будто доступна."""
+
+    return True
+
+
+async def _freshness_stub() -> dict:
+    """Заглушка свежести данных."""
+
+    return {
+        "last_load_at": "2026-10-09T15:02:05+00:00",
+        "last_data_date": "2026-10-10",
+        "layers": {},
+    }
 
 
 def test_root_ok() -> None:
@@ -19,8 +36,11 @@ def test_root_ok() -> None:
     assert body["health"] == "/health"
 
 
-def test_health_ok() -> None:
-    """GET /health отвечает 200 и status == ok."""
+def test_health_ok(monkeypatch) -> None:
+    """GET /health отвечает 200 и status == ok, когда БД доступна."""
+
+    monkeypatch.setattr(db, "ping", _ping_ok)
+    monkeypatch.setattr(db, "load_freshness", _freshness_stub)
 
     response = client.get("/health")
     assert response.status_code == 200

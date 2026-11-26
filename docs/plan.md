@@ -242,7 +242,7 @@ README ведём **сразу на двух языках** (`README.md` + `READ
 `GET /docs` отвечают 200; тест `tests/unit/test_health.py` зелёный.
 **Коммит:** `feat(stage0): project skeleton, FastAPI app and docker-compose`.
 
-### Этап 1. Слой доступа к данным
+### Этап 1. Слой доступа к данным (done, выполнен 2026-11-26)
 
 * Read-only роль `api_ro` + гранты (`db/init/`).
 * SQLAlchemy-модели на `mart` / `core` (read-only), `app/db.py` (async pool).

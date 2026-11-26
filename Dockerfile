@@ -16,6 +16,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY app ./app
+COPY tests ./tests
 COPY pyproject.toml ./
 
 EXPOSE 8000
