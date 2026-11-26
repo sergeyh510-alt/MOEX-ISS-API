@@ -6,7 +6,7 @@
 
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Integer, Text
+from sqlalchemy import BigInteger, Date, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base

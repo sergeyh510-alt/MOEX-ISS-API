@@ -7,8 +7,9 @@ English | [Русский](README_ru.md)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml)
 
-**Status: Stage 6/9**
+**Status: Stage 7/9**
 
 REST API on FastAPI over a mini-DWH of the Moscow Exchange (MOEX). The service
 does not compute anything on its own: it only reads the ready-made `mart` and
@@ -191,6 +192,35 @@ curl -s http://localhost:8000/api/v1/meta/version
 curl -s -H "X-API-Key: $MOEX_API_KEY" http://localhost:8000/api/v1/meta/version
 ```
 
+## Tests and CI
+
+Unit tests (`tests/unit`) run without any database: they cover the pure helpers
+(date and date_key conversion, pagination clamps, returns and ranking math,
+settings, error and rate limit helpers). Integration tests (`tests/integration`)
+need a live PostgreSQL with the loaded snapshot and are enabled by `TEST_DB=1`.
+
+Run the unit tests locally:
+
+```bash
+python -m pytest tests/unit -q
+```
+
+Run the full suite (unit plus integration) against the compose database, where
+`api` is the API image and `api_postgres` holds the loaded snapshot:
+
+```bash
+docker compose run --rm -e TEST_DB=1 --no-deps api pytest -q
+```
+
+CI (`.github/workflows/ci.yml`) runs three jobs on every push to `master` and on
+every pull request:
+
+- **lint**: installs ruff and runs `ruff check .`.
+- **tests**: starts a `postgres:17-alpine` service, installs `requirements.txt`,
+  loads `db/seed/00_schemas.sql` and `db/seed/01_seed.sql` through `psql`, then
+  runs `pytest -q --cov=app --cov-report=term-missing` with `TEST_DB=1`.
+- **docker**: verifies the image builds with `docker build` (no run).
+
 ## Roadmap
 
 - [x] Stage 0: project skeleton, FastAPI app and docker-compose
@@ -200,7 +230,7 @@ curl -s -H "X-API-Key: $MOEX_API_KEY" http://localhost:8000/api/v1/meta/version
 - [x] Stage 4: indices and index comparison endpoints
 - [x] Stage 5: movers and ranking endpoints
 - [x] Stage 6: cross-cutting concerns, errors, logging, api key
-- [ ] Stage 7: unit and integration tests plus CI
+- [x] Stage 7: unit and integration tests plus CI
 - [ ] Stage 8: ClickHouse analytics source behind a flag
 - [ ] Stage 9: redis cache and portfolio polish
 

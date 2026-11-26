@@ -37,7 +37,7 @@ def test_health_db_ok(monkeypatch) -> None:
     assert body["version"]
     assert body["time_utc"]
     assert body["db"]["status"] == "ok"
-    assert isinstance(body["db"]["latency_ms"], (int, float))
+    assert isinstance(body["db"]["latency_ms"], int | float)
     assert body["data"]["last_load_at"] == "2026-10-09T15:02:05+00:00"
     assert body["data"]["last_data_date"] == "2026-10-10"
 
@@ -55,4 +55,3 @@ def test_health_db_unavailable(monkeypatch) -> None:
     assert body["db"]["latency_ms"] is None
     assert body["data"]["last_load_at"] is None
     assert body["data"]["last_data_date"] is None
-

@@ -7,8 +7,9 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml)
 
-**Статус: этап 6/9**
+**Статус: этап 7/9**
 
 REST API на FastAPI поверх мини-DWH Московской биржи (MOEX). Сервис ничего не
 считает сам: он только читает готовые слои `mart` и `core` и отдаёт их в виде
@@ -192,6 +193,36 @@ curl -s http://localhost:8000/api/v1/meta/version
 curl -s -H "X-API-Key: $MOEX_API_KEY" http://localhost:8000/api/v1/meta/version
 ```
 
+## Тесты и CI
+
+Юнит-тесты (`tests/unit`) работают без базы данных: они покрывают чистые
+хелперы (конвертация дат и date_key, клампы пагинации, математика доходности и
+ранжирования, настройки, ошибки и лимит частоты). Интеграционные тесты
+(`tests/integration`) требуют живого PostgreSQL с загруженным слепком и
+включаются переменной `TEST_DB=1`.
+
+Запустить юнит-тесты локально:
+
+```bash
+python -m pytest tests/unit -q
+```
+
+Запустить весь набор (юнит плюс интеграционные) против базы из compose, где
+`api` это образ API, а `api_postgres` хранит загруженный слепок:
+
+```bash
+docker compose run --rm -e TEST_DB=1 --no-deps api pytest -q
+```
+
+CI (`.github/workflows/ci.yml`) гоняет три задачи на каждый push в `master` и
+на каждый pull request:
+
+- **lint**: ставит ruff и запускает `ruff check .`.
+- **tests**: поднимает сервис `postgres:17-alpine`, ставит `requirements.txt`,
+  загружает `db/seed/00_schemas.sql` и `db/seed/01_seed.sql` через `psql`, затем
+  запускает `pytest -q --cov=app --cov-report=term-missing` с `TEST_DB=1`.
+- **docker**: проверяет сборку образа через `docker build` (без запуска).
+
 ## План работ
 
 - [x] Этап 0: скелет проекта, FastAPI-приложение и docker-compose
@@ -201,7 +232,7 @@ curl -s -H "X-API-Key: $MOEX_API_KEY" http://localhost:8000/api/v1/meta/version
 - [x] Этап 4: индексы и сравнение с индексом
 - [x] Этап 5: лидеры роста и падения, рейтинг
 - [x] Этап 6: сквозные механизмы, ошибки, логи, api key
-- [ ] Этап 7: юнит и интеграционные тесты, CI
+- [x] Этап 7: юнит и интеграционные тесты, CI
 - [ ] Этап 8: ClickHouse как аналитический источник за флагом
 - [ ] Этап 9: Redis-кэш и портфолио-полировка
 

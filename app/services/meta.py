@@ -1,6 +1,6 @@
 """Бизнес-логика метаданных: свежесть и проверки качества."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.models.audit import DqRun
 from app.schemas.meta import (
@@ -20,8 +20,8 @@ def to_utc_iso(value: datetime | None) -> str | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc).isoformat()
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat()
 
 
 def build_freshness(
@@ -33,7 +33,7 @@ def build_freshness(
     """Собрать сводку свежести данных."""
 
     return FreshnessInfo(
-        generated_at=datetime.now(timezone.utc).isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
         last_load_at=to_utc_iso(last_load_at),
         last_data_date=date_key_to_date(last_data_date_key),
         layers=[

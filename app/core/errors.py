@@ -62,7 +62,9 @@ def not_found(message: str, details: Any | None = None) -> AppError:
     return AppError(code="not_found", message=message, status_code=404, details=details)
 
 
-def unauthorized(message: str = "Требуется корректный ключ доступа в заголовке X-API-Key.") -> AppError:
+def unauthorized(
+    message: str = "Требуется корректный ключ доступа в заголовке X-API-Key.",
+) -> AppError:
     """Ошибка авторизации (HTTP 401)."""
 
     return AppError(code="unauthorized", message=message, status_code=401)
@@ -98,7 +100,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(StarletteHTTPException)
-    async def _http_exception_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    async def _http_exception_handler(
+        _request: Request,
+        exc: StarletteHTTPException,
+    ) -> JSONResponse:
         code = STATUS_CODES.get(exc.status_code, "http_error")
         return JSONResponse(
             status_code=exc.status_code,

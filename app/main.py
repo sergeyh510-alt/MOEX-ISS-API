@@ -6,14 +6,13 @@
 
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import __version__
-from app import db
+from app import __version__, db
 from app.api.v1 import api_router
 from app.config import get_settings
 from app.core.errors import register_exception_handlers
@@ -204,7 +203,7 @@ async def health() -> JSONResponse:
     payload = {
         "status": "ok" if db_ok else "degraded",
         "version": __version__,
-        "time_utc": datetime.now(timezone.utc).isoformat(),
+        "time_utc": datetime.now(UTC).isoformat(),
         "db": {
             "status": "ok" if db_ok else "unavailable",
             "latency_ms": latency_ms if db_ok else None,

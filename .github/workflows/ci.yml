@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install ruff
+        run: pip install ruff==0.11.10
+      - name: Ruff check
+        run: ruff check .
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: moex_dwh
+          POSTGRES_USER: dwh
+          POSTGRES_PASSWORD: dwh
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dwh -d moex_dwh"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install postgresql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Load data snapshot
+        env:
+          PGPASSWORD: dwh
+        run: |
+          psql -h localhost -U dwh -d moex_dwh -v ON_ERROR_STOP=1 -f db/seed/00_schemas.sql
+          psql -h localhost -U dwh -d moex_dwh -v ON_ERROR_STOP=1 -f db/seed/01_seed.sql
+      - name: Run tests
+        env:
+          TEST_DB: "1"
+          DWH_DB_HOST: localhost
+          DWH_DB_PORT: "5432"
+          DWH_DB_NAME: moex_dwh
+          DWH_DB_USER: dwh
+          DWH_DB_PASSWORD: dwh
+        run: pytest -q --cov=app --cov-report=term-missing
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t moex-iss-api:ci .

@@ -7,7 +7,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -158,5 +158,5 @@ def _to_utc_iso(value: datetime) -> str:
     """Привести timestamp к UTC и вернуть в ISO-8601."""
 
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc).isoformat()
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat()

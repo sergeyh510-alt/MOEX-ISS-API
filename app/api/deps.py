@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Query
 from fastapi.responses import Response
 
 from app.schemas.common import Order, parse_order
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.core import DimSecurity
 
 DEFAULT_LIMIT = 100
 MIN_LIMIT = 1
@@ -53,16 +59,14 @@ def clamp_offset(offset: int) -> int:
 
 
 def get_period(
-    from_date: date | None = Query(
-        None,
-        alias="from",
-        description="Начало периода, YYYY-MM-DD (алиас from_date)",
-    ),
-    to_date: date | None = Query(
-        None,
-        alias="to",
-        description="Конец периода, YYYY-MM-DD (алиас to_date)",
-    ),
+    from_date: Annotated[
+        date | None,
+        Query(alias="from", description="Начало периода, YYYY-MM-DD (алиас from_date)"),
+    ] = None,
+    to_date: Annotated[
+        date | None,
+        Query(alias="to", description="Конец периода, YYYY-MM-DD (алиас to_date)"),
+    ] = None,
 ) -> PeriodDates:
     """Зависимость периода дат: from/to, алиасы from_date/to_date."""
 
@@ -70,7 +74,7 @@ def get_period(
 
 
 def get_valid_period(
-    period: PeriodDates = Depends(get_period),
+    period: Annotated[PeriodDates, Depends(get_period)],
 ) -> PeriodDates:
     """Зависимость периода дат с проверкой, что from не позже to.
 
@@ -115,7 +119,6 @@ async def resolve_security(
     оставался импортируемым без установленного драйвера (для юнит-тестов).
     """
 
-    from app.models.core import DimSecurity
     from app.repositories import securities as securities_repo
 
     row = await securities_repo.get_security(session, secid=secid, boardid=boardid)
