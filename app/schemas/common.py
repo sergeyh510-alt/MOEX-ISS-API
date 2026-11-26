@@ -1,7 +1,7 @@
-"""Общие схемы: конверт списка и порядок сортировки."""
+"""Общие схемы: конверт списка, порядок сортировки и конверт ошибки."""
 
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -38,7 +38,8 @@ class ErrorBody(BaseModel):
 
     code: str
     message: str
-    details: str | None = None
+    details: Any | None = None
+    request_id: str | None = None
 
 
 class ErrorResponse(BaseModel):

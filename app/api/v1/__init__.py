@@ -1,6 +1,11 @@
-"""Роутеры версии v1: сборка единого APIRouter под префиксом /api/v1."""
+"""Роутеры версии v1: сборка единого APIRouter под префиксом /api/v1.
 
-from fastapi import APIRouter
+Здесь же подключаются сквозные механизмы уровня API: обязательная проверка
+X-API-Key (если ключ включён в настройках) и общие ответы об ошибках для
+OpenAPI-документации.
+"""
+
+from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     compare,
@@ -13,8 +18,25 @@ from app.api.v1 import (
     returns,
     securities,
 )
+from app.schemas.common import ErrorResponse
+from app.security import require_api_key
 
-api_router = APIRouter(prefix="/api/v1")
+# Общие ответы об ошибках: показываем их в Swagger у каждого эндпоинта.
+COMMON_ERROR_RESPONSES: dict[int | str, dict] = {
+    401: {
+        "model": ErrorResponse,
+        "description": "Требуется корректный X-API-Key (если ключ включён в настройках).",
+    },
+    404: {"model": ErrorResponse, "description": "Объект не найден."},
+    422: {"model": ErrorResponse, "description": "Некорректные параметры запроса."},
+    429: {"model": ErrorResponse, "description": "Превышен лимит частоты запросов."},
+}
+
+api_router = APIRouter(
+    prefix="/api/v1",
+    dependencies=[Depends(require_api_key)],
+    responses=COMMON_ERROR_RESPONSES,
+)
 api_router.include_router(dates.router)
 api_router.include_router(securities.router)
 api_router.include_router(prices.router)

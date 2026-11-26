@@ -16,17 +16,45 @@ from app import __version__
 from app import db
 from app.api.v1 import api_router
 from app.config import get_settings
+from app.core.errors import register_exception_handlers
+from app.core.logging_setup import setup_logging
+from app.core.middleware import RequestContextMiddleware
+from app.core.ratelimit import RateLimitMiddleware
 
 settings = get_settings()
+setup_logging(settings.LOG_LEVEL)
 
 DESCRIPTION = """
 **MOEX-ISS API** это HTTP-слой поверх мини-DWH Московской биржи.
 
 API ничего не считает сам: он читает готовые слои `mart` и `core` (проект
-мини-DWH Мосбиржи) и отдаёт их по HTTP в виде документированных JSON-ответов
-со Swagger / OpenAPI.
+мини-DWH Мосбиржи) и отдаёт их по HTTP в виде документированных JSON-ответов.
 
 Источник данных: https://github.com/sergeyh510-alt/MOEX-ISS-mini-DWH
+
+### Авторизация
+
+Если в настройках задан `API_KEY`, все эндпоинты `/api/v1/*` требуют заголовок
+`X-API-Key`. Служебные `/health`, `/`, `/docs` и `/openapi.json` остаются
+открытыми. Если ключ не задан, API публичный.
+
+### Формат ошибок
+
+Любая ошибка отвечает единым телом:
+
+```json
+{"error": {"code": "not_found", "message": "Бумага не найдена.",
+           "details": null, "request_id": "5f1c..."}}
+```
+
+В заголовке `X-Request-ID` возвращается идентификатор запроса (свой, если вы
+его передали, или сгенерированный сервером).
+
+### Пагинация
+
+Списочные эндпоинты принимают `limit` и `offset` и возвращают конверт
+`{"items": [...], "total": N, "limit": L, "offset": O}`, дублируя границы в
+заголовках `X-Total-Count`, `X-Limit` и `X-Offset`.
 """
 
 OPENAPI_TAGS = [
@@ -76,6 +104,7 @@ OPENAPI_TAGS = [
     },
 ]
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Жизненный цикл приложения: поднять и закрыть пул соединений с БД."""
@@ -93,16 +122,39 @@ app = FastAPI(
     description=DESCRIPTION,
     openapi_tags=OPENAPI_TAGS,
     lifespan=lifespan,
+    contact={
+        "name": "Sergey Chekryzhov",
+        "url": "https://github.com/sergeyh510-alt/MOEX-ISS-API",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://github.com/sergeyh510-alt/MOEX-ISS-API/blob/master/LICENSE",
+    },
 )
 
-# CORS: только для dev (портфолио). В продакшене так делать нельзя:
-# список источников должен быть явным.
+# Единый формат ошибок для всех исключений приложения и FastAPI.
+register_exception_handlers(app)
+
+# Порядок важен: middleware, добавленный последним, оказывается самым внешним.
+# Итоговый порядок снаружи внутрь: CORS, идентификатор запроса, лимит частоты.
+app.add_middleware(
+    RateLimitMiddleware,
+    per_minute=settings.RATE_LIMIT_PER_MINUTE,
+    enabled=settings.RATE_LIMIT_ENABLED,
+)
+app.add_middleware(RequestContextMiddleware)
+
+_cors_origins = settings.cors_origins_list
+_cors_allows_all = _cors_origins == ["*"]
+# Вместе с "*" браузерные правила CORS запрещают передавать учётные данные,
+# поэтому в dev-режиме их отключаем, а не делаем вид, что они работают.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=not _cors_allows_all,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID", "X-Total-Count", "X-Limit", "X-Offset"],
 )
 
 # Прикладные эндпоинты: все под /api/v1.
@@ -128,6 +180,9 @@ async def health() -> JSONResponse:
     Пингуем БД с коротким таймаутом. Если БД доступна: status "ok" и 200.
     Если недоступна: status "degraded" и HTTP 503. Свежесть данных берём
     из meta.load_run и max(date_key) по mart.stock_returns.
+
+    Эндпоинт намеренно не подчиняется единому формату ошибок: его тело
+    читает healthcheck в docker-compose.
     """
 
     started = time.perf_counter()

@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     # Авторизация: пустой API_KEY означает, что авторизация выключена
     API_KEY: str = ""
 
+    # CORS: список источников через запятую, "*" это dev-режим
+    CORS_ORIGINS: str = "*"
+
+    # Ограничение частоты запросов на клиента (скользящее окно в минуту)
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_MINUTE: int = 600
+
     # Дополнительные источники (этапы 8 и 9)
     USE_CLICKHOUSE: bool = False
     REDIS_URL: str = "redis://localhost:6380/0"
@@ -52,6 +59,17 @@ class Settings(BaseSettings):
             f"{self.DWH_DB_USER}:{self.DWH_DB_PASSWORD}"
             f"@{self.DWH_DB_HOST}:{self.DWH_DB_PORT}/{self.DWH_DB_NAME}"
         )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Список источников для CORS, разобранный из строки настроек."""
+
+        raw = self.CORS_ORIGINS.strip()
+        if not raw:
+            return ["*"]
+        if raw == "*":
+            return ["*"]
+        return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 @lru_cache

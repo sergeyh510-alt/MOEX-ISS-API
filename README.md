@@ -8,7 +8,7 @@ English | [Русский](README_ru.md)
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status: Stage 5/9**
+**Status: Stage 6/9**
 
 REST API on FastAPI over a mini-DWH of the Moscow Exchange (MOEX). The service
 does not compute anything on its own: it only reads the ready-made `mart` and
@@ -176,6 +176,21 @@ curl "http://localhost:8000/api/v1/ranking?from=2024-01-03&to=2024-01-10&metric=
 List endpoints return the envelope `{"items": [...], "total": N, "limit": L, "offset": O}`
 plus the headers `X-Total-Count`, `X-Limit`, `X-Offset`.
 
+## Cross-cutting concerns
+
+- **Unified error format.** Every error answers with the same body, carrying a machine readable code and the request id: `{"error": {"code": "not_found", "message": "...", "details": null, "request_id": "..."}}`. Codes: `not_found`, `unauthorized`, `validation_error`, `rate_limited`, `internal_error`. `/health` is the only exception, its body is read by the compose healthcheck.
+- **Request id.** `X-Request-ID` comes back on every response. Send your own header and the same value is echoed, otherwise the server generates one, writes it to the logs and puts it into the error body.
+- **Logging.** One access line per request (method, path, status, duration, request id) plus application logs, all with the request id. Secrets are never logged.
+- **Rate limiting.** Sliding window per client, `RATE_LIMIT_PER_MINUTE` (600 by default) applies to `/api/v1/*` and answers 429 with `Retry-After`. `/health` is never limited. The counter lives in process memory, so several replicas would count separately.
+- **CORS.** `CORS_ORIGINS` is a comma separated list, `*` is the dev default. With `*` browsers forbid credentialed requests, so credentials are switched off in that mode instead of pretending they work.
+- **API key.** The API is public by default. Set `API_KEY` and every `/api/v1/*` request must send `X-API-Key`, while `/health`, `/`, `/docs` and `/openapi.json` stay open. The comparison is constant time.
+
+```bash
+# without a key the call is open, with a key set it must carry the header
+curl -s http://localhost:8000/api/v1/meta/version
+curl -s -H "X-API-Key: $MOEX_API_KEY" http://localhost:8000/api/v1/meta/version
+```
+
 ## Roadmap
 
 - [x] Stage 0: project skeleton, FastAPI app and docker-compose
@@ -184,7 +199,7 @@ plus the headers `X-Total-Count`, `X-Limit`, `X-Offset`.
 - [x] Stage 3: prices and returns endpoints
 - [x] Stage 4: indices and index comparison endpoints
 - [x] Stage 5: movers and ranking endpoints
-- [ ] Stage 6: cross-cutting concerns, errors, logging, api key
+- [x] Stage 6: cross-cutting concerns, errors, logging, api key
 - [ ] Stage 7: unit and integration tests plus CI
 - [ ] Stage 8: ClickHouse analytics source behind a flag
 - [ ] Stage 9: redis cache and portfolio polish
