@@ -2,13 +2,14 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     Pagination,
     get_pagination,
     resolve_order,
+    resolve_security,
     set_pagination_headers,
 )
 from app.db import get_session
@@ -71,12 +72,7 @@ async def get_security(
     режимов торгов), берётся строка с самым поздним last_tradedate.
     """
 
-    row = await securities_repo.get_security(session, secid=secid, boardid=boardid)
-    if row is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"бумага {secid!r} не найдена",
-        )
+    row = await resolve_security(session, secid=secid, boardid=boardid)
 
     min_date_key, max_date_key, price_rows = await securities_repo.get_coverage(
         session,

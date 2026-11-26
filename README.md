@@ -8,7 +8,7 @@ English | [Русский](README_ru.md)
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status: Stage 2/9**
+**Status: Stage 3/9**
 
 REST API on FastAPI over a mini-DWH of the Moscow Exchange (MOEX). The service
 does not compute anything on its own: it only reads the ready-made `mart` and
@@ -84,9 +84,9 @@ All application endpoints live under `/api/v1`. Service endpoints live at the ro
 | GET | `/api/v1/dates` | trading calendar (`trading_only=true`) | done |
 | GET | `/api/v1/securities` | securities list (search `q`, `boardid`, sort, paging) | done |
 | GET | `/api/v1/securities/{secid}` | single security card with coverage | done |
-| GET | `/api/v1/securities/{secid}/prices` | OHLCV over a period | planned |
-| GET | `/api/v1/securities/{secid}/returns` | return metrics over a period | planned |
-| GET | `/api/v1/securities/{secid}/summary` | aggregate: return, volatility, min/max | planned |
+| GET | `/api/v1/securities/{secid}/prices` | OHLCV over a period | done |
+| GET | `/api/v1/securities/{secid}/returns` | return metrics over a period | done |
+| GET | `/api/v1/securities/{secid}/summary` | aggregate: return, volatility, min/max | done |
 | GET | `/api/v1/indices` | indices list | planned |
 | GET | `/api/v1/indices/{code}` | index history over a period | planned |
 | GET | `/api/v1/compare` | stock vs index (`secid`, `index`, period) | planned |
@@ -119,6 +119,24 @@ Data freshness by layer:
 curl "http://localhost:8000/api/v1/meta/freshness"
 ```
 
+Daily OHLCV prices for a period:
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER/prices?from=2024-01-03&to=2024-01-10&order=asc"
+```
+
+Return metrics for a period:
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER/returns?from=2024-01-03&to=2024-01-10"
+```
+
+Period summary (return, volatility, best/worst day, max drawdown):
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER/summary?from=2024-01-03&to=2024-01-10"
+```
+
 List endpoints return the envelope `{"items": [...], "total": N, "limit": L, "offset": O}`
 plus the headers `X-Total-Count`, `X-Limit`, `X-Offset`.
 
@@ -127,7 +145,7 @@ plus the headers `X-Total-Count`, `X-Limit`, `X-Offset`.
 - [x] Stage 0: project skeleton, FastAPI app and docker-compose
 - [x] Stage 1: db layer, read-only role and data snapshot
 - [x] Stage 2: dictionaries endpoints (dates, securities, meta)
-- [ ] Stage 3: prices and returns endpoints
+- [x] Stage 3: prices and returns endpoints
 - [ ] Stage 4: indices and index comparison endpoints
 - [ ] Stage 5: movers and ranking endpoints
 - [ ] Stage 6: cross-cutting concerns, errors, logging, api key

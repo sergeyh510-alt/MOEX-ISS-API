@@ -1,9 +1,11 @@
 """Зависимости FastAPI: пагинация, период дат и заголовки пагинации."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import date
 
-from fastapi import Query
+from fastapi import HTTPException, Query
 from fastapi.responses import Response
 
 from app.schemas.common import Order, parse_order
@@ -79,3 +81,27 @@ def set_pagination_headers(response: Response, total: int, limit: int, offset: i
     response.headers["X-Total-Count"] = str(total)
     response.headers["X-Limit"] = str(limit)
     response.headers["X-Offset"] = str(offset)
+
+
+async def resolve_security(
+    session: AsyncSession,
+    *,
+    secid: str,
+    boardid: str | None,
+) -> DimSecurity:
+    """Разрешить бумагу по secid (по борду либо с самым поздним last_tradedate).
+
+    Общий хелпер для карточки, цен, доходности и сводки. Если бумаги нет,
+    поднимает HTTP 404 с понятным сообщением.
+
+    Импорты SQLAlchemy и репозитория сделаны внутри функции, чтобы модуль
+    оставался импортируемым без установленного драйвера (для юнит-тестов).
+    """
+
+    from app.models.core import DimSecurity
+    from app.repositories import securities as securities_repo
+
+    row = await securities_repo.get_security(session, secid=secid, boardid=boardid)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"бумага {secid!r} не найдена")
+    return row

@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Статус: этап 2/9**
+**Статус: этап 3/9**
 
 REST API на FastAPI поверх мини-DWH Московской биржи (MOEX). Сервис ничего не
 считает сам: он только читает готовые слои `mart` и `core` и отдаёт их в виде
@@ -85,9 +85,9 @@ pg_dump --no-owner --no-privileges --inserts \
 | GET | `/api/v1/dates` | торговый календарь (`trading_only=true`) | done |
 | GET | `/api/v1/securities` | список бумаг (поиск `q`, `boardid`, сортировка, пагинация) | done |
 | GET | `/api/v1/securities/{secid}` | карточка бумаги с покрытием | done |
-| GET | `/api/v1/securities/{secid}/prices` | OHLCV за период | planned |
-| GET | `/api/v1/securities/{secid}/returns` | метрики доходности за период | planned |
-| GET | `/api/v1/securities/{secid}/summary` | агрегат: доходность, волатильность, min/max | planned |
+| GET | `/api/v1/securities/{secid}/prices` | OHLCV за период | done |
+| GET | `/api/v1/securities/{secid}/returns` | метрики доходности за период | done |
+| GET | `/api/v1/securities/{secid}/summary` | агрегат: доходность, волатильность, min/max | done |
 | GET | `/api/v1/indices` | список индексов | planned |
 | GET | `/api/v1/indices/{code}` | история индекса за период | planned |
 | GET | `/api/v1/compare` | бумага против индекса (`secid`, `index`, период) | planned |
@@ -120,6 +120,24 @@ curl "http://localhost:8000/api/v1/dates?from=2026-01-01&to=2026-01-31&trading_o
 curl "http://localhost:8000/api/v1/meta/freshness"
 ```
 
+Дневные цены OHLCV за период:
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER/prices?from=2024-01-03&to=2024-01-10&order=asc"
+```
+
+Метрики доходности за период:
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER/returns?from=2024-01-03&to=2024-01-10"
+```
+
+Сводка за период (доходность, волатильность, лучший и худший день, просадка):
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER/summary?from=2024-01-03&to=2024-01-10"
+```
+
 Списочные эндпоинты отдают конверт `{"items": [...], "total": N, "limit": L, "offset": O}`
 и заголовки `X-Total-Count`, `X-Limit`, `X-Offset`.
 
@@ -128,7 +146,7 @@ curl "http://localhost:8000/api/v1/meta/freshness"
 - [x] Этап 0: скелет проекта, FastAPI-приложение и docker-compose
 - [x] Этап 1: слой доступа к данным, read-only роль и слепок данных
 - [x] Этап 2: справочники (dates, securities, meta)
-- [ ] Этап 3: цены и доходность
+- [x] Этап 3: цены и доходность
 - [ ] Этап 4: индексы и сравнение с индексом
 - [ ] Этап 5: лидеры роста и падения, рейтинг
 - [ ] Этап 6: сквозные механизмы, ошибки, логи, api key
