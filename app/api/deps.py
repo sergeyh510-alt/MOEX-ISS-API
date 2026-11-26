@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from fastapi import HTTPException, Query
+from fastapi import Depends, HTTPException, Query
 from fastapi.responses import Response
 
 from app.schemas.common import Order, parse_order
@@ -67,6 +67,23 @@ def get_period(
     """Зависимость периода дат: from/to, алиасы from_date/to_date."""
 
     return PeriodDates(from_date=from_date, to_date=to_date)
+
+
+def get_valid_period(
+    period: PeriodDates = Depends(get_period),
+) -> PeriodDates:
+    """Зависимость периода дат с проверкой, что from не позже to.
+
+    Некорректный период (from > to) даёт HTTP 422 с понятным сообщением.
+    """
+
+    from app.services.indices import validate_period_range
+
+    try:
+        validate_period_range(period.from_date, period.to_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return period
 
 
 def resolve_order(order: str) -> Order:

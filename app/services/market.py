@@ -6,8 +6,10 @@
 
 from datetime import date
 
-from app.models.core import FactDailyPrice
-from app.models.mart import StockReturn
+from app.models.core import FactDailyIndex, FactDailyPrice
+from app.models.mart import IndexCompare, StockReturn
+from app.schemas.compare import CompareRow
+from app.schemas.indices import IndexBar, IndexInfo
 from app.schemas.prices import PriceBar
 from app.schemas.returns import ClosePoint, DayReturn, ReturnRow, Summary
 from app.services import returns as math
@@ -58,6 +60,48 @@ def to_return_row(row: StockReturn) -> ReturnRow:
         volatility_5_pct=_as_float(row.volatility_5_pct),
         volatility_20_pct=_as_float(row.volatility_20_pct),
         cumulative_return_pct=_as_float(row.cumulative_return_pct),
+    )
+
+
+def to_index_info(index_code: str, first_date_key: int, last_date_key: int, rows: int) -> IndexInfo:
+    """Собрать сводку по индексу из агрегатов витрины."""
+
+    return IndexInfo(
+        index_code=index_code,
+        first_date=date_key_to_date(first_date_key),
+        last_date=date_key_to_date(last_date_key),
+        rows=rows,
+    )
+
+
+def to_index_bar(row: FactDailyIndex) -> IndexBar:
+    """Преобразовать строку core.fact_daily_index в схему IndexBar."""
+
+    return IndexBar(
+        date=date_key_to_date(row.date_key),
+        date_key=row.date_key,
+        open=_as_float(row.open),
+        low=_as_float(row.low),
+        high=_as_float(row.high),
+        close=_as_float(row.close),
+        value=_as_float(row.value),
+        prev_close=_as_float(row.prev_close),
+        close_change=_as_float(row.close_change),
+        close_change_pct=_as_float(row.close_change_pct),
+    )
+
+
+def to_compare_row(row: IndexCompare) -> CompareRow:
+    """Преобразовать строку mart.index_compare в схему CompareRow."""
+
+    return CompareRow(
+        date=date_key_to_date(row.date_key),
+        date_key=row.date_key,
+        secid=row.secid,
+        index_code=row.index_code,
+        stock_return_pct=_as_float(row.stock_return_pct),
+        index_return_pct=_as_float(row.index_return_pct),
+        excess_return_pct=_as_float(row.excess_return_pct),
     )
 
 

@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Статус: этап 3/9**
+**Статус: этап 4/9**
 
 REST API на FastAPI поверх мини-DWH Московской биржи (MOEX). Сервис ничего не
 считает сам: он только читает готовые слои `mart` и `core` и отдаёт их в виде
@@ -88,9 +88,9 @@ pg_dump --no-owner --no-privileges --inserts \
 | GET | `/api/v1/securities/{secid}/prices` | OHLCV за период | done |
 | GET | `/api/v1/securities/{secid}/returns` | метрики доходности за период | done |
 | GET | `/api/v1/securities/{secid}/summary` | агрегат: доходность, волатильность, min/max | done |
-| GET | `/api/v1/indices` | список индексов | planned |
-| GET | `/api/v1/indices/{code}` | история индекса за период | planned |
-| GET | `/api/v1/compare` | бумага против индекса (`secid`, `index`, период) | planned |
+| GET | `/api/v1/indices` | список индексов с покрытием | done |
+| GET | `/api/v1/indices/{code}` | история индекса за период | done |
+| GET | `/api/v1/compare` | бумага против индекса (`secid`, `index`, период) | done |
 | GET | `/api/v1/movers` | топ лучших и худших за дату или период | planned |
 | GET | `/api/v1/ranking` | рейтинг бумаг за период | planned |
 
@@ -138,6 +138,24 @@ curl "http://localhost:8000/api/v1/securities/SBER/returns?from=2024-01-03&to=20
 curl "http://localhost:8000/api/v1/securities/SBER/summary?from=2024-01-03&to=2024-01-10"
 ```
 
+Список индексов с покрытием:
+
+```bash
+curl "http://localhost:8000/api/v1/indices"
+```
+
+История индекса за период:
+
+```bash
+curl "http://localhost:8000/api/v1/indices/IMOEX?from=2024-01-03&to=2024-01-10&order=asc"
+```
+
+Сравнение бумаги с индексом:
+
+```bash
+curl "http://localhost:8000/api/v1/compare?secid=SBER&index=IMOEX&from=2024-01-03&to=2024-01-10"
+```
+
 Списочные эндпоинты отдают конверт `{"items": [...], "total": N, "limit": L, "offset": O}`
 и заголовки `X-Total-Count`, `X-Limit`, `X-Offset`.
 
@@ -147,7 +165,7 @@ curl "http://localhost:8000/api/v1/securities/SBER/summary?from=2024-01-03&to=20
 - [x] Этап 1: слой доступа к данным, read-only роль и слепок данных
 - [x] Этап 2: справочники (dates, securities, meta)
 - [x] Этап 3: цены и доходность
-- [ ] Этап 4: индексы и сравнение с индексом
+- [x] Этап 4: индексы и сравнение с индексом
 - [ ] Этап 5: лидеры роста и падения, рейтинг
 - [ ] Этап 6: сквозные механизмы, ошибки, логи, api key
 - [ ] Этап 7: юнит и интеграционные тесты, CI
