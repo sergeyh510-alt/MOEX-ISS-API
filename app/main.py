@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app import db
+from app.api.v1 import api_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -103,6 +104,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Прикладные эндпоинты: все под /api/v1.
+app.include_router(api_router)
 
 
 @app.get("/", tags=["Health"], summary="Корневая информация")

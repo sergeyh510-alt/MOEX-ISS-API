@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Статус: этап 1/9**
+**Статус: этап 2/9**
 
 REST API на FastAPI поверх мини-DWH Московской биржи (MOEX). Сервис ничего не
 считает сам: он только читает готовые слои `mart` и `core` и отдаёт их в виде
@@ -79,12 +79,12 @@ pg_dump --no-owner --no-privileges --inserts \
 | Метод | Путь | Назначение | Статус |
 |---|---|---|---|
 | GET | `/health` | живость, пинг БД и свежесть данных | done |
-| GET | `/api/v1/meta/version` | версия API, версия схемы DWH | planned |
-| GET | `/api/v1/meta/freshness` | когда обновлялся каждый слой | planned |
-| GET | `/api/v1/meta/dq` | статус проверок качества данных | planned |
-| GET | `/api/v1/dates` | торговый календарь (`trading_only=true`) | planned |
-| GET | `/api/v1/securities` | список бумаг (поиск `q`, `boardid`, сортировка, пагинация) | planned |
-| GET | `/api/v1/securities/{secid}` | карточка бумаги | planned |
+| GET | `/api/v1/meta/version` | версия API, версия схемы DWH | done |
+| GET | `/api/v1/meta/freshness` | когда обновлялся каждый слой | done |
+| GET | `/api/v1/meta/dq` | статус проверок качества данных | done |
+| GET | `/api/v1/dates` | торговый календарь (`trading_only=true`) | done |
+| GET | `/api/v1/securities` | список бумаг (поиск `q`, `boardid`, сортировка, пагинация) | done |
+| GET | `/api/v1/securities/{secid}` | карточка бумаги с покрытием | done |
 | GET | `/api/v1/securities/{secid}/prices` | OHLCV за период | planned |
 | GET | `/api/v1/securities/{secid}/returns` | метрики доходности за период | planned |
 | GET | `/api/v1/securities/{secid}/summary` | агрегат: доходность, волатильность, min/max | planned |
@@ -94,11 +94,40 @@ pg_dump --no-owner --no-privileges --inserts \
 | GET | `/api/v1/movers` | топ лучших и худших за дату или период | planned |
 | GET | `/api/v1/ranking` | рейтинг бумаг за период | planned |
 
+## Примеры
+
+Список бумаг с поиском, сортировкой и пагинацией:
+
+```bash
+curl "http://localhost:8000/api/v1/securities?q=sber&sort=secid&order=asc&limit=10"
+```
+
+Карточка бумаги с покрытием в mart.stock_returns:
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER"
+```
+
+Торговый календарь за период, только торговые дни:
+
+```bash
+curl "http://localhost:8000/api/v1/dates?from=2026-01-01&to=2026-01-31&trading_only=true"
+```
+
+Свежесть данных по слоям:
+
+```bash
+curl "http://localhost:8000/api/v1/meta/freshness"
+```
+
+Списочные эндпоинты отдают конверт `{"items": [...], "total": N, "limit": L, "offset": O}`
+и заголовки `X-Total-Count`, `X-Limit`, `X-Offset`.
+
 ## План работ
 
 - [x] Этап 0: скелет проекта, FastAPI-приложение и docker-compose
 - [x] Этап 1: слой доступа к данным, read-only роль и слепок данных
-- [ ] Этап 2: справочники (dates, securities, meta)
+- [x] Этап 2: справочники (dates, securities, meta)
 - [ ] Этап 3: цены и доходность
 - [ ] Этап 4: индексы и сравнение с индексом
 - [ ] Этап 5: лидеры роста и падения, рейтинг

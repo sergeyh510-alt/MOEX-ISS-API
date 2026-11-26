@@ -8,7 +8,7 @@ English | [Русский](README_ru.md)
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status: Stage 1/9**
+**Status: Stage 2/9**
 
 REST API on FastAPI over a mini-DWH of the Moscow Exchange (MOEX). The service
 does not compute anything on its own: it only reads the ready-made `mart` and
@@ -78,12 +78,12 @@ All application endpoints live under `/api/v1`. Service endpoints live at the ro
 | Method | Path | Purpose | Status |
 |---|---|---|---|
 | GET | `/health` | liveness + db ping + data freshness | done |
-| GET | `/api/v1/meta/version` | API version, DWH schema version | planned |
-| GET | `/api/v1/meta/freshness` | when each layer was last updated | planned |
-| GET | `/api/v1/meta/dq` | data quality checks status | planned |
-| GET | `/api/v1/dates` | trading calendar (`trading_only=true`) | planned |
-| GET | `/api/v1/securities` | securities list (search `q`, `boardid`, sort, paging) | planned |
-| GET | `/api/v1/securities/{secid}` | single security card | planned |
+| GET | `/api/v1/meta/version` | API version, DWH schema version | done |
+| GET | `/api/v1/meta/freshness` | when each layer was last updated | done |
+| GET | `/api/v1/meta/dq` | data quality checks status | done |
+| GET | `/api/v1/dates` | trading calendar (`trading_only=true`) | done |
+| GET | `/api/v1/securities` | securities list (search `q`, `boardid`, sort, paging) | done |
+| GET | `/api/v1/securities/{secid}` | single security card with coverage | done |
 | GET | `/api/v1/securities/{secid}/prices` | OHLCV over a period | planned |
 | GET | `/api/v1/securities/{secid}/returns` | return metrics over a period | planned |
 | GET | `/api/v1/securities/{secid}/summary` | aggregate: return, volatility, min/max | planned |
@@ -93,11 +93,40 @@ All application endpoints live under `/api/v1`. Service endpoints live at the ro
 | GET | `/api/v1/movers` | top gainers / losers for a date or period | planned |
 | GET | `/api/v1/ranking` | securities rating over a period | planned |
 
+## Examples
+
+List securities with search, sorting and paging:
+
+```bash
+curl "http://localhost:8000/api/v1/securities?q=sber&sort=secid&order=asc&limit=10"
+```
+
+Security card with data coverage in `mart.stock_returns`:
+
+```bash
+curl "http://localhost:8000/api/v1/securities/SBER"
+```
+
+Trading calendar for a period, trading days only:
+
+```bash
+curl "http://localhost:8000/api/v1/dates?from=2026-01-01&to=2026-01-31&trading_only=true"
+```
+
+Data freshness by layer:
+
+```bash
+curl "http://localhost:8000/api/v1/meta/freshness"
+```
+
+List endpoints return the envelope `{"items": [...], "total": N, "limit": L, "offset": O}`
+plus the headers `X-Total-Count`, `X-Limit`, `X-Offset`.
+
 ## Roadmap
 
 - [x] Stage 0: project skeleton, FastAPI app and docker-compose
 - [x] Stage 1: db layer, read-only role and data snapshot
-- [ ] Stage 2: dictionaries endpoints (dates, securities, meta)
+- [x] Stage 2: dictionaries endpoints (dates, securities, meta)
 - [ ] Stage 3: prices and returns endpoints
 - [ ] Stage 4: indices and index comparison endpoints
 - [ ] Stage 5: movers and ranking endpoints
