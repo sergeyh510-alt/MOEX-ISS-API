@@ -278,7 +278,7 @@ README ведём **сразу на двух языках** (`README.md` + `READ
 **Коммит:** `feat(stage4): indices and index comparison endpoints`.
 **Критерий приёмки:** сравнение бумаги с IMOEX совпадает с `mart.index_compare`.
 
-### Этап 5. Ранжирование
+### Этап 5. Ранжирование (done, выполнен 2026-11-26)
 
 * `/movers` (за дату и за период), `/ranking`.
 

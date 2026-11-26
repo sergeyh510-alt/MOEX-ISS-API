@@ -7,13 +7,16 @@
 from datetime import date
 
 from app.models.core import FactDailyIndex, FactDailyPrice
-from app.models.mart import IndexCompare, StockReturn
+from app.models.mart import DailyMover, IndexCompare, StockReturn
 from app.schemas.compare import CompareRow
 from app.schemas.indices import IndexBar, IndexInfo
+from app.schemas.movers import MoverRow
 from app.schemas.prices import PriceBar
+from app.schemas.ranking import RankingRow
 from app.schemas.returns import ClosePoint, DayReturn, ReturnRow, Summary
 from app.services import returns as math
 from app.services.dates import date_key_to_date
+from app.services.ranking import RankingAggregate
 
 
 def _as_float(value) -> float | None:
@@ -102,6 +105,43 @@ def to_compare_row(row: IndexCompare) -> CompareRow:
         stock_return_pct=_as_float(row.stock_return_pct),
         index_return_pct=_as_float(row.index_return_pct),
         excess_return_pct=_as_float(row.excess_return_pct),
+    )
+
+
+def to_mover_row(row: DailyMover) -> MoverRow:
+    """Преобразовать строку mart.daily_movers в схему MoverRow."""
+
+    return MoverRow(
+        date=date_key_to_date(row.date_key),
+        date_key=row.date_key,
+        security_key=row.security_key,
+        secid=row.secid,
+        daily_return_pct=_as_float(row.daily_return_pct),
+        return_rank=row.return_rank,
+        is_best_of_day=row.is_best_of_day,
+        is_worst_of_day=row.is_worst_of_day,
+    )
+
+
+def to_ranking_row(rank: int, aggregate: RankingAggregate) -> RankingRow:
+    """Преобразовать агрегат бумаги и его ранг в схему RankingRow."""
+
+    return RankingRow(
+        rank=rank,
+        secid=aggregate.secid,
+        security_key=aggregate.security_key,
+        boardid=aggregate.boardid,
+        trading_days=aggregate.trading_days,
+        first_close=aggregate.first_close,
+        last_close=aggregate.last_close,
+        period_return_pct=aggregate.period_return_pct,
+        avg_daily_return_pct=aggregate.avg_daily_return_pct,
+        volatility_pct=aggregate.volatility_pct,
+        cumulative_return_pct=aggregate.cumulative_return_pct,
+        best_day=aggregate.best_day,
+        worst_day=aggregate.worst_day,
+        times_best_of_day=aggregate.times_best_of_day,
+        times_worst_of_day=aggregate.times_worst_of_day,
     )
 
 

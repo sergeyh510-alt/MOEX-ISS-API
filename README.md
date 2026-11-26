@@ -8,7 +8,7 @@ English | [Русский](README_ru.md)
 [![Docker](https://img.shields.io/badge/Docker-compose-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status: Stage 4/9**
+**Status: Stage 5/9**
 
 REST API on FastAPI over a mini-DWH of the Moscow Exchange (MOEX). The service
 does not compute anything on its own: it only reads the ready-made `mart` and
@@ -90,8 +90,8 @@ All application endpoints live under `/api/v1`. Service endpoints live at the ro
 | GET | `/api/v1/indices` | indices list with coverage | done |
 | GET | `/api/v1/indices/{code}` | index history over a period | done |
 | GET | `/api/v1/compare` | stock vs index (`secid`, `index`, period) | done |
-| GET | `/api/v1/movers` | top gainers / losers for a date or period | planned |
-| GET | `/api/v1/ranking` | securities rating over a period | planned |
+| GET | `/api/v1/movers` | top gainers / losers for a date or period | done |
+| GET | `/api/v1/ranking` | securities rating over a period | done |
 
 ## Examples
 
@@ -155,6 +155,24 @@ Stock vs index comparison:
 curl "http://localhost:8000/api/v1/compare?secid=SBER&index=IMOEX&from=2024-01-03&to=2024-01-10"
 ```
 
+Top gainers and losers for a single day (omit `date` for the latest day):
+
+```bash
+curl "http://localhost:8000/api/v1/movers?date=2024-01-10&limit=5"
+```
+
+Best and worst days across all securities for a period:
+
+```bash
+curl "http://localhost:8000/api/v1/movers?from=2024-01-04&to=2024-01-10&limit=5"
+```
+
+Securities rating over a period by return (also `metric=volatility`, `avg_daily_return`, `cumulative_return`):
+
+```bash
+curl "http://localhost:8000/api/v1/ranking?from=2024-01-03&to=2024-01-10&metric=period_return&order=desc&limit=10"
+```
+
 List endpoints return the envelope `{"items": [...], "total": N, "limit": L, "offset": O}`
 plus the headers `X-Total-Count`, `X-Limit`, `X-Offset`.
 
@@ -165,7 +183,7 @@ plus the headers `X-Total-Count`, `X-Limit`, `X-Offset`.
 - [x] Stage 2: dictionaries endpoints (dates, securities, meta)
 - [x] Stage 3: prices and returns endpoints
 - [x] Stage 4: indices and index comparison endpoints
-- [ ] Stage 5: movers and ranking endpoints
+- [x] Stage 5: movers and ranking endpoints
 - [ ] Stage 6: cross-cutting concerns, errors, logging, api key
 - [ ] Stage 7: unit and integration tests plus CI
 - [ ] Stage 8: ClickHouse analytics source behind a flag
