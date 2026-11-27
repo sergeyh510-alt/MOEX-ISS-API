@@ -18,6 +18,7 @@ from app.db import get_session
 from app.repositories import returns as returns_repo
 from app.schemas.common import Order, Page
 from app.schemas.returns import ReturnRow, Summary
+from app.services import analytics
 from app.services.market import build_summary, to_return_row
 
 router = APIRouter(tags=["Returns"])
@@ -76,7 +77,7 @@ async def get_summary(
     """
 
     security = await resolve_security(session, secid=secid, boardid=boardid)
-    rows = await returns_repo.list_returns_in_period(
+    rows = await analytics.load_summary_rows(
         session,
         security_key=security.security_key,
         from_date=period.from_date,

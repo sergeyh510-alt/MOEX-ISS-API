@@ -308,7 +308,7 @@ README ведём **сразу на двух языках** (`README.md` + `READ
 **Критерий приёмки:** CI зелёный на push, покрытие ключевых веток есть,
 README содержит бейдж.
 
-### Этап 8. ClickHouse
+### Этап 8. ClickHouse (done, выполнен 2026-11-27)
 
 * Сервис ClickHouse в `docker-compose.ch.yml`, заливка витрин
   (`scripts/ch_load.py`), клиент `app/analytics_ch.py`.

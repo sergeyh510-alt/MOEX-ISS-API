@@ -76,6 +76,17 @@ def bad_request(message: str, details: Any | None = None) -> AppError:
     return AppError(code="bad_request", message=message, status_code=400, details=details)
 
 
+def service_unavailable(message: str, details: Any | None = None) -> AppError:
+    """Сервис недоступен (HTTP 503), например внешний источник данных."""
+
+    return AppError(
+        code="service_unavailable",
+        message=message,
+        status_code=503,
+        details=details,
+    )
+
+
 def error_payload(code: str, message: str, details: Any | None = None) -> dict[str, Any]:
     """Собрать тело ответа об ошибке с текущим request_id."""
 

@@ -1,0 +1,40 @@
+# Override-файл (этап 8): добавляет ClickHouse как необязательный второй
+# источник для тяжёлой аналитики. Запуск:
+#   docker compose -f docker-compose.yml -f docker-compose.ch.yml up -d
+# Без этого файла основной стек работает как раньше, на одном PostgreSQL.
+services:
+  api:
+    environment:
+      USE_CLICKHOUSE: "true"
+      CLICKHOUSE_HOST: api_ch
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: dwh
+      CLICKHOUSE_PASSWORD: dwh
+      CLICKHOUSE_DATABASE: dwh
+    depends_on:
+      api_ch:
+        condition: service_healthy
+
+  api_ch:
+    image: clickhouse/clickhouse-server:25.3-alpine
+    environment:
+      CLICKHOUSE_DB: dwh
+      CLICKHOUSE_USER: dwh
+      CLICKHOUSE_PASSWORD: dwh
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    volumes:
+      - api_ch_data:/var/lib/clickhouse
+    healthcheck:
+      # Используем 127.0.0.1, а не localhost: в контейнере localhost резолвится
+      # в IPv6 ::1, а ClickHouse слушает только IPv4 (0.0.0.0:8123).
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  api_ch_data:

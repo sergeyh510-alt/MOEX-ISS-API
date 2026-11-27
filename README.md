@@ -9,7 +9,7 @@ English | [Русский](README_ru.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml)
 
-**Status: Stage 7/9**
+**Status: Stage 8/9**
 
 REST API on FastAPI over a mini-DWH of the Moscow Exchange (MOEX). The service
 does not compute anything on its own: it only reads the ready-made `mart` and
@@ -71,6 +71,41 @@ pg_dump --no-owner --no-privileges --inserts \
   --schema=mart --schema=core --schema=meta --schema=audit \
   "postgresql://dwh:dwh@localhost:5433/moex_dwh" > db/seed/01_seed.sql
 ```
+
+## ClickHouse (optional analytics source)
+
+PostgreSQL is the primary source and the source of truth. ClickHouse is an
+optional second source used only for the heavy analytics endpoints (`/summary`
+and `/ranking`); enable it with `USE_CLICKHOUSE=true`. When the flag is off the
+behavior is exactly the same as before. Both sources feed the same raw mart rows
+into the same math functions (`app/services/returns.py`, `app/services/ranking.py`),
+so results match by construction rather than by chance.
+
+Start the stack with ClickHouse (the override file adds the `api_ch` service and
+sets the API env):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ch.yml up -d
+```
+
+Load the mart tables from PostgreSQL into ClickHouse (idempotent: re-run to
+refresh the secondary copy):
+
+```bash
+docker compose exec api python -m scripts.ch_load
+```
+
+Notes:
+
+- ClickHouse data is a secondary copy. It is not updated automatically: re-run
+  the loader (or the loading container) to refresh it.
+- If `USE_CLICKHOUSE=true` and ClickHouse is unavailable, the analytics endpoints
+  return HTTP 503 in the unified error format. There is no silent fallback to
+  PostgreSQL.
+- Enabled by `USE_CLICKHOUSE=true`, `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`,
+  `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DATABASE`,
+  `CLICKHOUSE_TIMEOUT_S`.
+- CI does not run ClickHouse: the parity test is skipped unless `TEST_CH=1`.
 
 ## Endpoints
 
@@ -231,14 +266,14 @@ every pull request:
 - [x] Stage 5: movers and ranking endpoints
 - [x] Stage 6: cross-cutting concerns, errors, logging, api key
 - [x] Stage 7: unit and integration tests plus CI
-- [ ] Stage 8: ClickHouse analytics source behind a flag
+- [x] Stage 8: ClickHouse analytics source behind a flag
 - [ ] Stage 9: redis cache and portfolio polish
 
 ## Limitations
 
 - Data is updated once a day (not real-time).
-- Dev ports: PostgreSQL on `5438`, Redis on `6380` (the DWH uses `5433`).
-- Redis cache and ClickHouse are disabled by default (enabled on stages 8 and 9).
+- Dev ports: PostgreSQL on `5438`, Redis on `6380`, ClickHouse on `8124` (the DWH uses `5433`).
+- Redis cache is disabled by default (enabled on stage 9). ClickHouse is off by default and is a secondary copy that must be reloaded manually.
 - CORS is wide open (`*`) for dev only; do not use this configuration in production.
 
 ## License

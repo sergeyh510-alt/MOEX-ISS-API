@@ -46,8 +46,17 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_PER_MINUTE: int = 600
 
-    # Дополнительные источники (этапы 8 и 9)
+    # ClickHouse (этап 8): необязательный второй источник для тяжёлой аналитики.
+    # PostgreSQL остаётся основным источником и источником истины.
     USE_CLICKHOUSE: bool = False
+    CLICKHOUSE_HOST: str = "api_ch"
+    CLICKHOUSE_PORT: int = 8123
+    CLICKHOUSE_USER: str = "dwh"
+    CLICKHOUSE_PASSWORD: str = "dwh"
+    CLICKHOUSE_DATABASE: str = "dwh"
+    CLICKHOUSE_TIMEOUT_S: float = 5.0
+
+    # Redis-кэш (этап 9)
     REDIS_URL: str = "redis://localhost:6380/0"
 
     @property

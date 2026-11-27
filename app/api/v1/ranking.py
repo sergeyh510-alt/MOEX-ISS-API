@@ -17,10 +17,9 @@ from app.api.deps import (
     set_pagination_headers,
 )
 from app.db import get_session
-from app.repositories import ranking as ranking_repo
 from app.schemas.common import Order, Page
 from app.schemas.ranking import RankingRow
-from app.services.dates import date_to_date_key
+from app.services import analytics
 from app.services.market import to_ranking_row
 from app.services.ranking import RankingMetric, build_aggregates, rank_aggregates
 
@@ -45,16 +44,10 @@ async def get_ranking(
     нумеруется с 1 в порядке сортировки и учитывает offset.
     """
 
-    from_key, to_key = await _resolve_bounds(session, period)
-    rows = await ranking_repo.list_returns_window(
+    rows, leadership = await analytics.load_ranking_data(
         session,
-        from_date_key=from_key,
-        to_date_key=to_key,
-    )
-    leadership = await ranking_repo.count_leadership(
-        session,
-        from_date_key=from_key,
-        to_date_key=to_key,
+        from_date=period.from_date,
+        to_date=period.to_date,
     )
     aggregates = build_aggregates(rows, leadership)
     total = len(aggregates)
@@ -63,18 +56,3 @@ async def get_ranking(
     set_pagination_headers(response, total, page.limit, page.offset)
     items = [to_ranking_row(rank, aggregate) for rank, aggregate in ranked]
     return Page[RankingRow](items=items, total=total, limit=page.limit, offset=page.offset)
-
-
-async def _resolve_bounds(session: AsyncSession, period: PeriodDates) -> tuple[int, int]:
-    """Границы периода в date_key: из параметров либо весь доступный диапазон."""
-
-    min_key, max_key = await ranking_repo.get_returns_bounds(session)
-    if period.from_date is not None:
-        from_key = date_to_date_key(period.from_date)
-    else:
-        from_key = min_key if min_key is not None else 0
-    if period.to_date is not None:
-        to_key = date_to_date_key(period.to_date)
-    else:
-        to_key = max_key if max_key is not None else 99991231
-    return from_key, to_key

@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml)
 
-**Статус: этап 7/9**
+**Статус: этап 8/9**
 
 REST API на FastAPI поверх мини-DWH Московской биржи (MOEX). Сервис ничего не
 считает сам: он только читает готовые слои `mart` и `core` и отдаёт их в виде
@@ -72,6 +72,41 @@ pg_dump --no-owner --no-privileges --inserts \
   --schema=mart --schema=core --schema=meta --schema=audit \
   "postgresql://dwh:dwh@localhost:5433/moex_dwh" > db/seed/01_seed.sql
 ```
+
+## ClickHouse (необязательный источник аналитики)
+
+PostgreSQL это основной источник и источник истины. ClickHouse это
+необязательный второй источник только для тяжёлых аналитических эндпоинтов
+(`/summary` и `/ranking`); включается флагом `USE_CLICKHOUSE=true`. При
+выключенном флаге поведение ровно такое же, как раньше. Оба источника отдают
+одни и те же сырые строки витрин в одни и те же функции математики
+(`app/services/returns.py`, `app/services/ranking.py`), поэтому результаты
+совпадают по построению, а не по совпадению.
+
+Поднять стек вместе с ClickHouse (override-файл добавляет сервис `api_ch` и
+прописывает переменные API):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ch.yml up -d
+```
+
+Залить витрины mart из PostgreSQL в ClickHouse (идемпотентно: повторный запуск
+обновляет вторичную копию):
+
+```bash
+docker compose exec api python -m scripts.ch_load
+```
+
+Замечания:
+
+- Данные в ClickHouse это вторичная копия. Она не обновляется автоматически:
+  перелейте её повторным запуском загрузчика.
+- Если `USE_CLICKHOUSE=true`, а ClickHouse недоступен, аналитические эндпоинты
+  отдают HTTP 503 в едином формате ошибок. Молчаливого отката на PostgreSQL нет.
+- Включается переменными `USE_CLICKHOUSE=true`, `CLICKHOUSE_HOST`,
+  `CLICKHOUSE_PORT`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`,
+  `CLICKHOUSE_DATABASE`, `CLICKHOUSE_TIMEOUT_S`.
+- CI не запускает ClickHouse: тест паритета пропускается без `TEST_CH=1`.
 
 ## Эндпоинты
 
@@ -233,14 +268,14 @@ CI (`.github/workflows/ci.yml`) гоняет три задачи на кажды
 - [x] Этап 5: лидеры роста и падения, рейтинг
 - [x] Этап 6: сквозные механизмы, ошибки, логи, api key
 - [x] Этап 7: юнит и интеграционные тесты, CI
-- [ ] Этап 8: ClickHouse как аналитический источник за флагом
+- [x] Этап 8: ClickHouse как аналитический источник за флагом
 - [ ] Этап 9: Redis-кэш и портфолио-полировка
 
 ## Ограничения
 
 - Данные обновляются раз в день (не real-time).
-- Dev-порты: PostgreSQL на `5438`, Redis на `6380` (DWH использует `5433`).
-- Redis-кэш и ClickHouse по умолчанию выключены (включаются на этапах 8 и 9).
+- Dev-порты: PostgreSQL на `5438`, Redis на `6380`, ClickHouse на `8124` (DWH использует `5433`).
+- Redis-кэш по умолчанию выключен (включается на этапе 9). ClickHouse выключен по умолчанию и это вторичная копия, которую нужно переливать вручную.
 - CORS открыт (`*`) только для dev; в продакшене такая конфигурация недопустима.
 
 ## Лицензия
