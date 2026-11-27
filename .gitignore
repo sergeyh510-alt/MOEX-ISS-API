@@ -30,3 +30,8 @@ Desktop.ini
 # Local data dumps (большие слепки не коммитим)
 db/seed/*.sql.gz
 db/seed/*.dump
+
+# Личные учебные материалы: не для публикации в открытом репозитории.
+# Чтобы опубликовать руководство, уберите эти строки и закоммитьте файлы.
+docs/interview-guide.md
+docs/*interview_guide*.docx
