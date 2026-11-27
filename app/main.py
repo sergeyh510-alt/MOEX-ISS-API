@@ -12,8 +12,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import __version__, db
+from app import __version__, cache, db
 from app.api.v1 import api_router
+from app.cache import CacheMiddleware
 from app.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging_setup import setup_logging
@@ -106,13 +107,14 @@ OPENAPI_TAGS = [
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Жизненный цикл приложения: поднять и закрыть пул соединений с БД."""
+    """Жизненный цикл приложения: поднять и закрыть пул БД и клиент Redis."""
 
     await db.init_engine()
     try:
         yield
     finally:
         await db.dispose_engine()
+        await cache.close()
 
 
 app = FastAPI(
@@ -135,7 +137,10 @@ app = FastAPI(
 register_exception_handlers(app)
 
 # Порядок важен: middleware, добавленный последним, оказывается самым внешним.
-# Итоговый порядок снаружи внутрь: CORS, идентификатор запроса, лимит частоты.
+# Итоговый порядок снаружи внутрь: CORS, идентификатор запроса, лимит частоты,
+# кэш. Кэш кэширует самые внутренние ответы, поэтому лимит частоты и заголовок
+# X-Request-ID продолжают работать и на попадании в кэш.
+app.add_middleware(CacheMiddleware)
 app.add_middleware(
     RateLimitMiddleware,
     per_minute=settings.RATE_LIMIT_PER_MINUTE,
@@ -153,7 +158,7 @@ app.add_middleware(
     allow_credentials=not _cors_allows_all,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Request-ID", "X-Total-Count", "X-Limit", "X-Offset"],
+    expose_headers=["X-Request-ID", "X-Total-Count", "X-Limit", "X-Offset", "X-Cache"],
 )
 
 # Прикладные эндпоинты: все под /api/v1.

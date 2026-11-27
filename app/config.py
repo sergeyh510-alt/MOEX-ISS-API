@@ -56,7 +56,11 @@ class Settings(BaseSettings):
     CLICKHOUSE_DATABASE: str = "dwh"
     CLICKHOUSE_TIMEOUT_S: float = 5.0
 
-    # Redis-кэш (этап 9)
+    # Redis-кэш (этап 9): необязательный ускоритель, по умолчанию выключен.
+    # Если Redis недоступен, приложение работает без кэша (без 503).
+    CACHE_ENABLED: bool = False
+    CACHE_TTL_SECONDS: int = 60
+    CACHE_KEY_PREFIX: str = "moex-api"
     REDIS_URL: str = "redis://localhost:6380/0"
 
     @property

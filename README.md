@@ -9,7 +9,7 @@ English | [Русский](README_ru.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyh510-alt/MOEX-ISS-API/actions/workflows/ci.yml)
 
-**Status: Stage 8/9**
+**Status: Stage 9/9**
 
 REST API on FastAPI over a mini-DWH of the Moscow Exchange (MOEX). The service
 does not compute anything on its own: it only reads the ready-made `mart` and
@@ -31,6 +31,37 @@ docker compose up -d
 ```
 
 Then open http://localhost:8000/docs for the interactive Swagger UI.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    client["Client: browser, BI, service"]
+    api["FastAPI app.main"]
+    services["Services app.services"]
+    repo["Repositories: SELECT only"]
+    pg[("PostgreSQL: mart, core, meta, audit")]
+    ch[("ClickHouse: secondary copy")]
+    cache[("Redis: response cache")]
+
+    client -->|HTTP| api
+    api --> cache
+    api --> services
+    services --> repo
+    repo -->|primary source| pg
+    services -.->|USE_CLICKHOUSE=true| ch
+    api -.->|CACHE_ENABLED=true| cache
+```
+
+Request flow: the client calls `/api/v1/...`, the API layer validates the
+parameters, the service layer computes derived metrics, and the repositories
+read rows from PostgreSQL. Optional branches are switched by flags: ClickHouse
+speeds up heavy analytics (`/summary`, `/ranking`), Redis caches successful
+responses. PostgreSQL stays the source of truth.
+
+More detail: [docs/architecture.md](docs/architecture.md) (data flow, layers),
+[docs/api.md](docs/api.md) (endpoints, examples, errors and headers),
+[docs/queries.md](docs/queries.md) (key SQL with explanations).
 
 ## Health
 
@@ -106,6 +137,29 @@ Notes:
   `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DATABASE`,
   `CLICKHOUSE_TIMEOUT_S`.
 - CI does not run ClickHouse: the parity test is skipped unless `TEST_CH=1`.
+
+## Redis cache (optional)
+
+The cache is optional and off by default. It only speeds up responses; if it is
+off or Redis is unreachable the API works as usual (a single warning is logged,
+no 503 because of the cache).
+
+Enable it with `CACHE_ENABLED=true`, then start the stack (Redis is already part
+of `docker-compose.yml`) and set the env:
+
+```bash
+# in .env
+CACHE_ENABLED=true
+CACHE_TTL_SECONDS=60
+CACHE_KEY_PREFIX=moex-api
+REDIS_URL=redis://redis:6379/0
+docker compose up -d
+```
+
+Only successful HTTP 200 GET responses under `/api/v1` are cached, keyed by
+path and query parameters, with the TTL from `CACHE_TTL_SECONDS`. Every such
+response carries `X-Cache: HIT` or `X-Cache: MISS`. Errors are never cached and
+`/health` is never cached. The cache is invalidated only by TTL.
 
 ## Endpoints
 
@@ -231,8 +285,10 @@ curl -s -H "X-API-Key: $MOEX_API_KEY" http://localhost:8000/api/v1/meta/version
 
 Unit tests (`tests/unit`) run without any database: they cover the pure helpers
 (date and date_key conversion, pagination clamps, returns and ranking math,
-settings, error and rate limit helpers). Integration tests (`tests/integration`)
-need a live PostgreSQL with the loaded snapshot and are enabled by `TEST_DB=1`.
+settings, error, rate limit and cache key helpers). Integration tests
+(`tests/integration`) need a live PostgreSQL with the loaded snapshot and are
+enabled by `TEST_DB=1`. The ClickHouse parity test needs `TEST_CH=1` and the
+cache flow test needs `TEST_REDIS=1`; without those variables they are skipped.
 
 Run the unit tests locally:
 
@@ -256,6 +312,37 @@ every pull request:
   runs `pytest -q --cov=app --cov-report=term-missing` with `TEST_DB=1`.
 - **docker**: verifies the image builds with `docker build` (no run).
 
+## What broke and how I fixed it
+
+Real issues found while building this project and how they were fixed:
+
+- **Snapshot volume mounted into a read-only init directory.** The `db/seed`
+  volume was mounted inside `/docker-entrypoint-initdb.d`, which is mounted
+  `:ro`. Docker could not create the mount point and the container failed with
+  `mkdirat ... read-only file system`. Fixed by mounting the snapshot at a
+  separate path `/seed` and reading the files from there.
+- **ClickHouse healthcheck hit `localhost`, which is IPv6 in the container.**
+  Inside the container `localhost` resolves to IPv6 `::1`, while ClickHouse
+  listens on IPv4 only, so the probe always got "Connection refused" and the
+  `api` service never started (it waits for `service_healthy`). Fixed by using
+  `127.0.0.1` in the healthcheck.
+- **A unit test patched a repository through `sys.modules`.** The test replaced
+  `app.repositories.ranking` via `sys.modules`, but `analytics` imports the
+  submodule with `from app.repositories import ranking`; once the submodule is
+  already imported, the package attribute points at the real module, so the
+  patch did nothing and the real function ran with `session=None`. The test
+  only passed where `sqlalchemy` was absent. Fixed by patching the three
+  functions on the real module with `monkeypatch.setattr` and guarding the test
+  with `pytest.importorskip("sqlalchemy")`.
+- **Pydantic fields named `date` with type `date | None = None` broke on Python
+  3.14.** With lazy (postponed) annotations the default value shadows the
+  same-named type, so `date | None` could not be evaluated. Fixed by importing
+  the type as `date_type` and qualifying the field type (`date_type | None`).
+- **`ORDER BY ... DESC` in psql puts `NULL` first.** The reference query for the
+  best day returned `NULL` first because PostgreSQL sorts `NULL` as the largest
+  value in `DESC` unless `NULLS LAST` is given. Fixed by handling `NULL`
+  explicitly in the ordering/tie-break logic.
+
 ## Roadmap
 
 - [x] Stage 0: project skeleton, FastAPI app and docker-compose
@@ -267,13 +354,18 @@ every pull request:
 - [x] Stage 6: cross-cutting concerns, errors, logging, api key
 - [x] Stage 7: unit and integration tests plus CI
 - [x] Stage 8: ClickHouse analytics source behind a flag
-- [ ] Stage 9: redis cache and portfolio polish
+- [x] Stage 9: redis cache and portfolio polish
 
 ## Limitations
 
 - Data is updated once a day (not real-time).
 - Dev ports: PostgreSQL on `5438`, Redis on `6380`, ClickHouse on `8124` (the DWH uses `5433`).
-- Redis cache is disabled by default (enabled on stage 9). ClickHouse is off by default and is a secondary copy that must be reloaded manually.
+- No authorization by default; set `API_KEY` to require `X-API-Key`.
+- Rate limiting counts in process memory, so several replicas count separately.
+- ClickHouse is off by default and is a secondary copy that must be reloaded manually.
+- There is no incremental refresh: the snapshot and ClickHouse are reloaded in full.
+- The Redis cache is off by default and is invalidated only by TTL.
+- The service is designed for a single instance.
 - CORS is wide open (`*`) for dev only; do not use this configuration in production.
 
 ## License
